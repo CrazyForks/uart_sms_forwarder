@@ -12,6 +12,11 @@
 - 💓 心跳状态上报
 - 🛡️ 错误处理和内存管理
 
+## 截图
+
+![screenshot1.png](screenshots/screenshot1.png)
+![screenshot2.png](screenshots/screenshot2.png)
+
 ## 🚀 快速开始
 
 ### 1. 硬件准备
