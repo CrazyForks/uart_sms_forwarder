@@ -112,7 +112,7 @@ func setup(app *orz.App) error {
 	// 10. 启动后台服务
 	background := context.Background()
 	// 启动串口服务
-	go serialService.Start(background)
+	go serialService.Start()
 
 	// 启动定时任务服务
 	if err := schedulerService.Start(background); err != nil {

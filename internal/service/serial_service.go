@@ -36,8 +36,6 @@ type SerialService struct {
 	textMsgService  *TextMessageService
 	notifier        *Notifier
 	propertyService *PropertyService
-	ctx             context.Context
-	cancel          context.CancelFunc
 	wg              sync.WaitGroup
 	// 设备信息缓存
 	deviceCache cache.Cache[string, *StatusData]
@@ -66,8 +64,7 @@ func NewSerialService(
 }
 
 // Start 启动串口服务（使用 backoff 重连机制）
-func (s *SerialService) Start(ctx context.Context) {
-	s.ctx, s.cancel = context.WithCancel(ctx)
+func (s *SerialService) Start() {
 
 	// 启动主循环
 	b := &backoff.Backoff{
@@ -78,19 +75,7 @@ func (s *SerialService) Start(ctx context.Context) {
 	}
 
 	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		default:
-		}
-
 		err := s.runOnce(b.Reset)
-
-		// 检查是否是上下文取消
-		if s.ctx.Err() != nil {
-			s.logger.Info("收到停止信号，串口服务退出")
-			return
-		}
 
 		// 连接失败或断开，使用 backoff 重试
 		if err != nil {
@@ -100,12 +85,7 @@ func (s *SerialService) Start(ctx context.Context) {
 				zap.Error(err),
 				zap.Duration("retry_after", retryAfter))
 
-			select {
-			case <-time.After(retryAfter):
-				continue
-			case <-s.ctx.Done():
-				return
-			}
+			time.Sleep(retryAfter)
 		}
 	}
 }
@@ -175,40 +155,27 @@ func (s *SerialService) runOnce(resetBackoff func()) error {
 
 	s.logger.Info("串口连接成功", zap.String("port", selectedPort))
 
+	// 为本次连接创建独立的 context，用于管理连接的生命周期
+	connCtx, connCancel := context.WithCancel(context.Background())
+	defer connCancel() // 确保退出时取消 context
+
 	// 启动监听 goroutine
 	s.wg.Add(1)
-	go s.listenSerialData()
+	go s.listenSerialData(connCtx, connCancel)
 
 	// 启动定时更新缓存的 goroutine
 	s.wg.Add(1)
-	go s.periodicCacheUpdate()
+	go s.periodicCacheUpdate(connCtx)
 
 	// 首次立即发送缓存更新请求
 	go s.requestCacheUpdate()
 
 	// 等待连接断开
 	s.wg.Wait()
-	return nil
-}
 
-// Stop 停止串口服务
-func (s *SerialService) Stop() error {
-	s.logger.Info("正在停止串口服务...")
+	// 连接已断开，更新状态
+	s.setConnected(false)
 
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	s.wg.Wait()
-
-	if s.port != nil {
-		if err := s.port.Close(); err != nil {
-			s.logger.Error("关闭串口失败", zap.Error(err))
-			return err
-		}
-	}
-
-	s.logger.Info("串口服务已停止")
 	return nil
 }
 
@@ -320,7 +287,7 @@ func (s *SerialService) isValidResponse(response string) bool {
 }
 
 // listenSerialData 监听串口数据（在独立 goroutine 中运行）
-func (s *SerialService) listenSerialData() {
+func (s *SerialService) listenSerialData(connCtx context.Context, connCancel context.CancelFunc) {
 	defer s.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -331,13 +298,15 @@ func (s *SerialService) listenSerialData() {
 			s.port.Close()
 			s.port = nil
 		}
+		// 取消连接 context，通知其他 goroutine 连接已断开
+		connCancel()
 	}()
 
 	reader := bufio.NewReader(s.port)
 
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-connCtx.Done():
 			s.logger.Info("串口监听停止")
 			return
 		default:
@@ -349,7 +318,7 @@ func (s *SerialService) listenSerialData() {
 					return
 				}
 				// 检查 context 是否已取消
-				if s.ctx.Err() != nil {
+				if connCtx.Err() != nil {
 					return
 				}
 				// 其他错误，可能是设备断开或硬件错误
@@ -363,7 +332,7 @@ func (s *SerialService) listenSerialData() {
 }
 
 // periodicCacheUpdate 定时更新缓存
-func (s *SerialService) periodicCacheUpdate() {
+func (s *SerialService) periodicCacheUpdate(connCtx context.Context) {
 	defer s.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -376,7 +345,7 @@ func (s *SerialService) periodicCacheUpdate() {
 
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-connCtx.Done():
 			s.logger.Info("停止定时更新缓存")
 			return
 		case <-ticker.C:
