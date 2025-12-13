@@ -8,6 +8,7 @@ import (
 
 	"github.com/dushixiang/uart_sms_forwarder/internal/models"
 	"github.com/dushixiang/uart_sms_forwarder/internal/repo"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -36,7 +37,7 @@ type Stats struct {
 
 // Save 保存短信记录
 func (s *TextMessageService) Save(ctx context.Context, msg *models.TextMessage) error {
-	if err := s.repo.Create(ctx, msg); err != nil {
+	if err := s.repo.Save(ctx, msg); err != nil {
 		s.logger.Error("保存短信记录失败", zap.Error(err), zap.String("id", msg.ID))
 		return fmt.Errorf("保存短信记录失败: %w", err)
 	}
@@ -105,4 +106,10 @@ func (s *TextMessageService) GetStats(ctx context.Context) (*Stats, error) {
 	}
 
 	return stats, nil
+}
+
+func (s *TextMessageService) UpdateStatusById(ctx context.Context, id string, status models.MessageStatus) error {
+	return s.repo.UpdateColumnsById(ctx, id, map[string]interface{}{
+		"status": status,
+	})
 }

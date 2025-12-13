@@ -488,9 +488,8 @@ func (s *SerialService) handleIncomingSMS(jsonData string) {
 		From:      sms.From,
 		To:        "", // 接收方是本机
 		Content:   sms.Content,
-		Type:      "incoming",
-		Status:    "received",
-		Timestamp: sms.Timestamp,
+		Type:      models.MessageTypeIncoming,
+		Status:    models.MessageStatusReceived,
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
@@ -577,7 +576,6 @@ func (s *SerialService) handleSMSSendResult(msg map[string]interface{}) {
 	success, _ := msg["success"].(bool)
 	to, _ := msg["to"].(string)
 	requestID, _ := msg["request_id"].(string)
-	timestamp, _ := msg["timestamp"].(float64)
 
 	if requestID == "" {
 		s.logger.Warn("收到短信发送结果但缺少 request_id", zap.Any("msg", msg))
@@ -586,34 +584,22 @@ func (s *SerialService) handleSMSSendResult(msg map[string]interface{}) {
 
 	// 从数据库获取消息记录
 	ctx := context.Background()
-	textMsg, err := s.textMsgService.Get(ctx, requestID)
-	if err != nil {
-		s.logger.Error("获取短信记录失败",
-			zap.String("request_id", requestID),
-			zap.Error(err))
-		return
-	}
-
+	var status models.MessageStatus
 	// 更新状态
 	if success {
-		textMsg.Status = "sent"
+		status = models.MessageStatusSent
 		s.logger.Info("短信发送成功",
 			zap.String("to", to),
 			zap.String("request_id", requestID))
 	} else {
-		textMsg.Status = "failed"
+		status = models.MessageStatusFailed
 		s.logger.Error("短信发送失败",
 			zap.String("to", to),
 			zap.String("request_id", requestID))
 	}
 
-	// 更新时间戳（如果有的话）
-	if timestamp > 0 {
-		textMsg.Timestamp = int64(timestamp)
-	}
-
 	// 保存更新
-	if err := s.textMsgService.Save(ctx, textMsg); err != nil {
+	if err := s.textMsgService.UpdateStatusById(ctx, requestID, status); err != nil {
 		s.logger.Error("更新短信状态失败",
 			zap.String("request_id", requestID),
 			zap.Error(err))
@@ -630,9 +616,8 @@ func (s *SerialService) SendSMS(to, content string) error {
 		From:      "", // 发送方是本机
 		To:        to,
 		Content:   content,
-		Type:      "outgoing",
-		Status:    "sending", // 初始状态为发送中
-		Timestamp: time.Now().Unix(),
+		Type:      models.MessageTypeOutgoing,
+		Status:    models.MessageStatusSending, // 初始状态为发送中
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
@@ -652,8 +637,8 @@ func (s *SerialService) SendSMS(to, content string) error {
 	if err := s.sendJSONCommand(cmd); err != nil {
 		s.logger.Error("发送短信命令失败", zap.Error(err))
 		// 更新状态为失败
-		msg.Status = "failed"
-		s.textMsgService.Save(ctx, msg)
+		// 更新状态为失败
+		_ = s.textMsgService.UpdateStatusById(ctx, msgID, models.MessageStatusFailed)
 		return err
 	}
 
