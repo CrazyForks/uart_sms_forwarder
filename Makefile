@@ -1,4 +1,4 @@
-.PHONY: build-web build-server build-servers build-release clean
+.PHONY: build-web build-server build-servers build-linux build-release clean dev run
 
 # 变量定义
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -18,6 +18,63 @@ build-server:
 	$(GOFLAGS) GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-amd64 cmd/serv/main.go
 	upx bin/uart_sms_forwarder-linux-amd64
 	@echo "Server built successfully!"
+	@ls -lh bin/
+
+# 构建服务端（多平台）
+build-servers:
+	@echo "Building servers for multiple platforms..."
+	@mkdir -p bin
+
+	# Linux
+	@echo "Building for Linux amd64..."
+	$(GOFLAGS) GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-amd64 cmd/serv/main.go
+
+	@echo "Building for Linux arm64..."
+	$(GOFLAGS) GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-arm64 cmd/serv/main.go
+
+	@echo "Building for Linux arm..."
+	$(GOFLAGS) GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-arm cmd/serv/main.go
+
+	# Windows
+	@echo "Building for Windows amd64..."
+	$(GOFLAGS) GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-windows-amd64.exe cmd/serv/main.go
+
+	@echo "Building for Windows arm64..."
+	$(GOFLAGS) GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-windows-arm64.exe cmd/serv/main.go
+
+	# macOS
+	@echo "Building for macOS amd64..."
+	$(GOFLAGS) GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-darwin-amd64 cmd/serv/main.go
+
+	@echo "Building for macOS arm64..."
+	$(GOFLAGS) GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-darwin-arm64 cmd/serv/main.go
+
+	# FreeBSD
+	@echo "Building for FreeBSD amd64..."
+	$(GOFLAGS) GOOS=freebsd GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-freebsd-amd64 cmd/serv/main.go
+
+	@echo "Compressing binaries..."
+	upx bin/uart_sms_forwarder-linux-* bin/uart_sms_forwarder-windows-* bin/uart_sms_forwarder-freebsd-* 2>/dev/null || true
+
+	@echo "All servers built successfully!"
+	@ls -lh bin/
+
+# 构建 Linux 平台（用于 Docker 镜像）
+build-linux:
+	@echo "Building for Linux platforms (Docker)..."
+	@mkdir -p bin
+
+	# Linux amd64
+	@echo "Building for Linux amd64..."
+	$(GOFLAGS) GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-amd64 cmd/serv/main.go
+	upx bin/uart_sms_forwarder-linux-amd64
+
+	# Linux arm64
+	@echo "Building for Linux arm64..."
+	$(GOFLAGS) GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o bin/uart_sms_forwarder-linux-arm64 cmd/serv/main.go
+	upx bin/uart_sms_forwarder-linux-arm64
+
+	@echo "Linux binaries built successfully!"
 	@ls -lh bin/
 
 # 构建所有（发布版本）

@@ -34,31 +34,52 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y upx
 
-      - name: 使用 Make 构建前后端
+      - name: 使用 Make 构建前后端（多平台）
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          make build-release VERSION=${VERSION}
+          make build-web
+          make build-servers VERSION=${VERSION}
           ls -lh bin/
 
       - name: 准备发布包
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          RELEASE_DIR="uart_sms_forwarder-linux-amd64"
 
-          # 创建发布目录
-          mkdir -p ${RELEASE_DIR}
+          # 定义平台和架构
+          PLATFORMS=(
+            "linux-amd64"
+            "linux-arm64"
+            "linux-arm"
+            "windows-amd64"
+            "windows-arm64"
+            "darwin-amd64"
+            "darwin-arm64"
+            "freebsd-amd64"
+          )
 
-          # 复制二进制文件
-          cp bin/uart_sms_forwarder-linux-amd64 ${RELEASE_DIR}/uart_sms_forwarder
+          # 为每个平台创建发布包
+          for PLATFORM in "${PLATFORMS[@]}"; do
+            RELEASE_DIR="uart_sms_forwarder-${PLATFORM}"
+            mkdir -p ${RELEASE_DIR}
 
-          # 复制配置文件示例并重命名为 config.yaml
-          cp config.example.yaml ${RELEASE_DIR}/config.yaml
+            # 复制二进制文件
+            if [[ $PLATFORM == windows-* ]]; then
+              cp bin/uart_sms_forwarder-${PLATFORM}.exe ${RELEASE_DIR}/uart_sms_forwarder.exe
+            else
+              cp bin/uart_sms_forwarder-${PLATFORM} ${RELEASE_DIR}/uart_sms_forwarder
+            fi
 
-          # 打包为 tar.gz
-          tar -czf ${RELEASE_DIR}.tar.gz ${RELEASE_DIR}
+            # 复制配置文件示例
+            cp config.example.yaml ${RELEASE_DIR}/config.yaml
 
-          # 显示打包结果
-          ls -lh ${RELEASE_DIR}.tar.gz
+            # 打包为 tar.gz
+            tar -czf ${RELEASE_DIR}.tar.gz ${RELEASE_DIR}
+
+            echo "✓ Packaged ${PLATFORM}"
+          done
+
+          # 显示所有打包结果
+          ls -lh uart_sms_forwarder-*.tar.gz
 
       - name: 创建 Release 并上传文件
         uses: softprops/action-gh-release@v1
