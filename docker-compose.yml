@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   uart_sms_forwarder:
     # 使用最新的镜像，也可以指定具体版本如：dushixiang/uart_sms_forwarder:v1.0.0
@@ -22,9 +20,6 @@ services:
     # 如果需要访问串口设备，取消以下注释并修改设备路径
     # devices:
     #   - /dev/ttyUSB0:/dev/ttyUSB0
-
-    # 如果需要访问串口设备，可能需要 privileged 权限
-    # privileged: true
 
     environment:
       - TZ=Asia/Shanghai

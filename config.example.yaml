@@ -2,7 +2,7 @@ database:
   enabled: true
   type: sqlite
   sqlite:
-    path: "./app.db"
+    path: "./data/app.db"
   show_sql: false
 log:
   level: debug # 日志等级  debug,info,waring,error

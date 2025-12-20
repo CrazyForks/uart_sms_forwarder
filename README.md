@@ -45,6 +45,31 @@
 
 ### 5. 运行上位机程序
 
+#### docker 方式安装
+
+```shell
+# 创建空目录
+mkdir /opt/uart_sms_forwarder
+# 下载 docker-compose.yml 文件
+wget https://raw.githubusercontent.com/dushixiang/uart_sms_forwarder/main/docker-compose.yml -O /opt/uart_sms_forwarder/docker-compose.yml
+# 下载 config.example.yaml 文件
+wget https://raw.githubusercontent.com/dushixiang/uart_sms_forwarder/main/config.example.yaml -O /opt/uart_sms_forwarder/config.yaml
+```
+
+修改 `docker-compose.yml` 和 `config.yaml` 文件，主要是映射 USB 路径和修改密码。
+
+启动服务
+
+```shell
+docker-compose up -d
+```
+
+打开浏览器访问 8080 端口。
+
+----
+
+#### 原生方式安装
+
 下载
 
 ```shell
@@ -79,6 +104,12 @@ WantedBy=multi-user.target
 EOF
 ```
 
+创建 sqllite 目录
+
+```shell
+mkdir /opt/uart_sms_forwarder/data
+```
+
 启动服务
 
 ```shell
@@ -90,3 +121,5 @@ systemctl start uart_sms_forwarder
 打开浏览器访问 8080 端口。
 
 修改密码等配置项，请参考 [config.example.yaml](config.example.yaml) 文件。
+
+
