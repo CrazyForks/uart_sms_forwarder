@@ -337,7 +337,10 @@ func (n *Notifier) sendFeishuByConfig(ctx context.Context, config map[string]int
 	// 构造 Webhook URL
 	webhook := fmt.Sprintf("https://open.feishu.cn/open-apis/bot/v2/hook/%s", secretKey)
 
-	return n.sendFeishu(ctx, webhook, message)
+	// 检查是否有加签密钥
+	signSecret, _ := config["signSecret"].(string)
+
+	return n.sendFeishu(ctx, webhook, signSecret, message)
 }
 
 // SendDingTalkByConfig 导出方法供外部调用
