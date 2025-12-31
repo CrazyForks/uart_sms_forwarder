@@ -21,5 +21,5 @@ var OperData = map[string]string{
 	"45410": "CSL HK",
 	"45412": "CMHK",
 	"45406": "SmarTone HK",
-	"45400": "CSL HK"
+	"45400": "CSL HK",
 }
