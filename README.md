@@ -2,7 +2,7 @@
 
 基于 合宙Air780 XXX 系列设备的短信转发系统，支持接收短信并通过串口转发到上位机。
 
-[项目说明](https://www.typesafe.cn/posts/air780e-giffgaff/)
+[项目说明](https://blog.typesafe.cn/posts/air780e-giffgaff/)
 
 **已测试设备**
 
